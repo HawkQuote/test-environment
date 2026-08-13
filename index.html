@@ -182,9 +182,9 @@
             </table>
 
             <div class="raid-result-box">
-                <div style="font-weight:bold;">RAID Summary: <span id="raidLabelTop">RAID 10</span></div>
-                <div style="font-size:14px;">Usable Capacity: <span id="raidCap" style="font-weight:bold;">0.0 TB</span> | Fault Tolerance: <span id="raidFault" style="font-weight:bold;">0 drive</span></div>
-            </div>
+    <div style="font-weight:bold;" id="raidLabelTop">RAID 10 Summary</div>
+    <div style="font-size:14px;">Usable Capacity: <span id="raidCap" style="font-weight:bold;">0.0 TB</span> | Fault Tolerance: <span id="raidFault" style="font-weight:bold;">0 drive</span></div>
+</div>
 
             <div id="licenseBreakdown" style="margin-top: 20px; display: none; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                 <div style="background: #edf2f7; padding: 12px 15px; font-weight: bold; color: #2d3748; border-bottom: 1px solid #cbd5e0; font-size: 14px;">NetFlow Software Licenses</div>
@@ -345,48 +345,55 @@
     }
 
     function updateRAID() {
-        const raidBox = document.querySelector('.raid-result-box');
-        const raidTypeVal = document.getElementById('raidType') ? document.getElementById('raidType').value : "RAID 10";
+    const raidBox = document.querySelector('.raid-result-box');
+    const raidTypeVal = document.getElementById('raidType') ? document.getElementById('raidType').value : "N/A";
 
-        if (raidTypeVal === "N/A") {
-            if (raidBox) raidBox.style.display = 'none';
-            return;
-        }
+    const n = parseInt(document.getElementById('raidDisks').value) || 0;
+    const s = parseFloat(document.getElementById('raidSize').value) || 0;
+    const requiredArchiveTB = parseFloat(document.getElementById('dispArchive').innerText) || 0;
 
-        if (raidBox) raidBox.style.display = 'block';
+    let cap = 0;
+    let fault = "";
+    let title = "";
 
-        const n = parseInt(document.getElementById('raidDisks').value) || 0;
-        const s = parseFloat(document.getElementById('raidSize').value) || 0;
-        const requiredArchiveTB = parseFloat(document.getElementById('dispArchive').innerText) || 0;
-
-        const cap = (n >= 4) ? (n / 2) * s : 0;
-        const fault = (n >= 4) ? "1 drive/set" : "None";
-
-        document.getElementById('raidCap').innerText = cap.toFixed(1) + " TB";
-        document.getElementById('raidLabelTop').innerText = "RAID 10";
-        document.getElementById('raidFault').innerText = fault;
-
-        let warningMsg = document.getElementById('raidWarningText');
-
-        if (cap < requiredArchiveTB && requiredArchiveTB > 0) {
-            raidBox.style.borderColor = "#e53e3e";
-            raidBox.style.backgroundColor = "#fff5f5";
-            raidBox.style.color = "#c53030";
-
-            if (!warningMsg) {
-                warningMsg = document.createElement('div');
-                warningMsg.id = 'raidWarningText';
-                warningMsg.style.cssText = 'font-size: 12px; font-weight: bold; margin-top: 8px; color: #c53030;';
-                raidBox.appendChild(warningMsg);
-            }
-            warningMsg.innerText = `⚠️ Insufficient Storage: Usable capacity (${cap.toFixed(1)} TB) is less than required archive (${requiredArchiveTB.toFixed(1)} TB). Select a larger drive size!`;
-        } else {
-            raidBox.style.borderColor = "#38a169";
-            raidBox.style.backgroundColor = "#f0fff4";
-            raidBox.style.color = "#2f855a";
-            if (warningMsg) warningMsg.remove();
-        }
+    // CLEAN TITLE & CAPACITY LOGIC
+    if (raidTypeVal === "N/A") {
+        cap = n * s;
+        fault = "None (No Redundancy)";
+        title = "Storage Summary (Non-RAID)";
+    } else {
+        cap = (n >= 4) ? (n / 2) * s : 0;
+        fault = (n >= 4) ? "1 drive/set" : "None";
+        title = "RAID 10 Summary";
     }
+
+    if (raidBox) raidBox.style.display = 'block';
+
+    document.getElementById('raidCap').innerText = cap.toFixed(1) + " TB";
+    document.getElementById('raidLabelTop').innerText = title;
+    document.getElementById('raidFault').innerText = fault;
+
+    let warningMsg = document.getElementById('raidWarningText');
+
+    if (cap < requiredArchiveTB && requiredArchiveTB > 0) {
+        raidBox.style.borderColor = "#e53e3e";
+        raidBox.style.backgroundColor = "#fff5f5";
+        raidBox.style.color = "#c53030";
+
+        if (!warningMsg) {
+            warningMsg = document.createElement('div');
+            warningMsg.id = 'raidWarningText';
+            warningMsg.style.cssText = 'font-size: 12px; font-weight: bold; margin-top: 8px; color: #c53030;';
+            raidBox.appendChild(warningMsg);
+        }
+        warningMsg.innerText = `⚠️ Insufficient Storage: Selected capacity (${cap.toFixed(1)} TB) is less than required archive (${requiredArchiveTB.toFixed(2)} TB). Please select a larger drive size!`;
+    } else {
+        raidBox.style.borderColor = "#38a169";
+        raidBox.style.backgroundColor = "#f0fff4";
+        raidBox.style.color = "#2f855a";
+        if (warningMsg) warningMsg.remove();
+    }
+}
 
     function onCustomDriveChange() {
         const raidSizeElement = document.getElementById('raidSize');
@@ -1100,44 +1107,44 @@
         currentY += licenseBoxHeight + 10;
     }
 
-// --- 4. DYNAMIC RAID SUMMARY BOX (SKIPPED IF RAID TYPE IS N/A) ---
-    if (raidTypeLabel !== "N/A") {
-        const usableCapVal = parseFloat(document.getElementById('raidCap').innerText) || 0;
-        const requiredArchiveVal = parseFloat(document.getElementById('dispArchive').innerText) || 0;
-        const isDeficit = (usableCapVal < requiredArchiveVal) && (requiredArchiveVal > 0);
+// --- 4. DYNAMIC STORAGE & RAID SUMMARY BOX ---
+    const usableCapVal = (raidTypeLabel === "N/A") ? (n * s) : ((n >= 4) ? (n / 2) * s : 0);
+    const requiredArchiveVal = parseFloat(document.getElementById('dispArchive').innerText) || 0;
+    const isDeficit = (usableCapVal < requiredArchiveVal) && (requiredArchiveVal > 0);
 
-        const raidBoxHeight = isDeficit ? 46 : 38; 
+    const raidBoxHeight = isDeficit ? 46 : 38; 
+    const boxTitle = (raidTypeLabel === "N/A") ? "STORAGE SUMMARY (NON-RAID)" : "RAID CONFIGURATION SUMMARY";
 
-        if (isDeficit) {
-            doc.setDrawColor(229, 62, 62).setLineWidth(0.5).setFillColor(255, 245, 245);
-            doc.rect(14, currentY, 182, raidBoxHeight, 'FD');
+    if (isDeficit) {
+        doc.setDrawColor(229, 62, 62).setLineWidth(0.5).setFillColor(255, 245, 245);
+        doc.rect(14, currentY, 182, raidBoxHeight, 'FD');
 
-            doc.setTextColor(197, 48, 48).setFontSize(11).setFont("helvetica", "bold");
-            doc.text("RAID SUMMARY: RAID 10 (STORAGE WARNING)", 20, currentY + 8);
+        doc.setTextColor(197, 48, 48).setFontSize(11).setFont("helvetica", "bold");
+        doc.text(`${boxTitle} - INSUFFICIENT STORAGE`, 20, currentY + 8);
 
-            doc.setTextColor(0).setFontSize(9.5).setFont("helvetica", "normal");
-            doc.text(`Configuration: ${raidTypeLabel} | RAW: ${rawCap} TB`, 20, currentY + 17);
-            doc.text(`Usable Capacity: ${document.getElementById('raidCap').innerText} | Fault Tolerance: ${document.getElementById('raidFault').innerText}`, 20, currentY + 25);
+        doc.setTextColor(0).setFontSize(9.5).setFont("helvetica", "normal");
+        doc.text(`Configuration: ${raidTypeLabel} | Selected Drive Space: ${rawCap} TB`, 20, currentY + 17);
+        doc.text(`Usable Capacity: ${document.getElementById('raidCap').innerText} | Fault Tolerance: ${document.getElementById('raidFault').innerText}`, 20, currentY + 25);
 
-            doc.setTextColor(197, 48, 48).setFontSize(8).setFont("helvetica", "bold");
-            const warningMsg = `WARNING: Insufficient Storage! Usable capacity (${usableCapVal.toFixed(1)} TB) is less than required archive (${requiredArchiveVal.toFixed(2)} TB). Please select a larger drive size!`;
-            
-            const splitWarning = doc.splitTextToSize(warningMsg, 170);
-            doc.text(splitWarning, 20, currentY + 33);
-        } else {
-            doc.setDrawColor(56, 161, 105).setLineWidth(0.5).setFillColor(240, 255, 244);
-            doc.rect(14, currentY, 182, raidBoxHeight, 'FD');
+        doc.setTextColor(197, 48, 48).setFontSize(8).setFont("helvetica", "bold");
+        const warningMsg = `WARNING: Insufficient Storage! Selected capacity (${usableCapVal.toFixed(1)} TB) is less than required archive (${requiredArchiveVal.toFixed(2)} TB). Please select a larger drive size!`;
+        
+        const splitWarning = doc.splitTextToSize(warningMsg, 170);
+        doc.text(splitWarning, 20, currentY + 33);
+    } else {
+        doc.setDrawColor(56, 161, 105).setLineWidth(0.5).setFillColor(240, 255, 244);
+        doc.rect(14, currentY, 182, raidBoxHeight, 'FD');
 
-            doc.setTextColor(47, 133, 90).setFontSize(11).setFont("helvetica", "bold");
-            doc.text("RAID CONFIGURATION SUMMARY", 20, currentY + 8);
+        doc.setTextColor(47, 133, 90).setFontSize(11).setFont("helvetica", "bold");
+        doc.text(boxTitle, 20, currentY + 8);
 
-            doc.setTextColor(0).setFontSize(9.5).setFont("helvetica", "normal");
-            doc.text(`Configuration: ${raidTypeLabel} | RAW: ${rawCap} TB`, 20, currentY + 18);
-            doc.text(`Usable Capacity: ${document.getElementById('raidCap').innerText} | Fault Tolerance: ${document.getElementById('raidFault').innerText}`, 20, currentY + 27);
-        }
-
-        currentY += raidBoxHeight + 10;
+        doc.setTextColor(0).setFontSize(9.5).setFont("helvetica", "normal");
+        doc.text(`Configuration: ${raidTypeLabel} | Total Capacity: ${rawCap} TB`, 20, currentY + 18);
+        doc.text(`Usable Capacity: ${document.getElementById('raidCap').innerText} | Fault Tolerance: ${document.getElementById('raidFault').innerText}`, 20, currentY + 27);
     }
+
+    currentY += raidBoxHeight + 10;
+    
 
     // --- 5. Archive Calculations Box (Aligned Layout with Note) ---
     doc.setFillColor(0, 75, 99).rect(14, currentY, 182, 52, 'F').setTextColor(255); 
